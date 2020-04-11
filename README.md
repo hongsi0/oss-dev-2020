@@ -1,5 +1,5 @@
 # oss-dev-2020
-for CSE2019 (오픈소스SW개발)
+repository for CSE2019 (오픈소스SW개발)
 
 ## Team
 이용현이형우홍시영
