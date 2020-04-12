@@ -2,7 +2,7 @@
 Repository for CSE2019 (오픈소스SW개발)
 
 ## Team Name
-이용현이형우홍시영
+김동현이용현이형우홍시영
 
 ## Self Introduction
 HYU ERICA Software, the class of 2023   
