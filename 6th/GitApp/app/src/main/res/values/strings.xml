@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">GitApp</string>
+    <string name="show_git">Show</string>
+</resources>
