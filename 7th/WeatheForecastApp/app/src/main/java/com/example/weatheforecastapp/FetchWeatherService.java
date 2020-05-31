@@ -1,27 +1,14 @@
 package com.example.weatheforecastapp;
 
+import android.app.Service;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.net.Uri;
 import android.os.AsyncTask;
-import android.os.Bundle;
-
-import androidx.annotation.Nullable;
-import androidx.fragment.app.Fragment;
-
+import android.os.IBinder;
 import android.preference.PreferenceManager;
 import android.text.format.Time;
 import android.util.Log;
-import android.view.LayoutInflater;
-import android.view.Menu;
-import android.view.MenuInflater;
-import android.view.MenuItem;
-import android.view.View;
-import android.view.ViewGroup;
-import android.widget.AdapterView;
-import android.widget.ArrayAdapter;
-import android.widget.ListView;
-import android.widget.Toast;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -34,94 +21,45 @@ import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
 
-public class ForecastFragment extends Fragment {
-
-    private ArrayAdapter<String> myAdapter;
-
-    public ForecastFragment() {
-        // Required empty public constructor
+public class FetchWeatherService extends Service {
+    public static final String ACTION_RETRIEVE_WEATHER_DATA = "com.loyid.weatherforecast.RETRIEVE_DATA";
+    public static final String EXTRA_WEATHER_DATA = "weather-data";
+    public FetchWeatherService() {
     }
 
     @Override
-    public void onCreate(@Nullable Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        setHasOptionsMenu(true);
-    }
+    public int onStartCommand(Intent intent, int flags, int startId) {
 
-    @Override
-    public void onCreateOptionsMenu(Menu menu, MenuInflater inflater) {
-        inflater.inflate(R.menu.toolbar_action, menu);
-    }
-
-    @Override
-    public boolean onOptionsItemSelected(MenuItem item) {
-        int id = item.getItemId();
-        if (id == R.id.action_refresh) {
-            refreshWeatherData();
-            return true;
+        String action = intent.getAction();
+        if (action.equals(ACTION_RETRIEVE_WEATHER_DATA)) {
+            retrieveWeatherData(startId);
         }
-
-        return super.onOptionsItemSelected(item);
+        return super.onStartCommand(intent, flags, startId);
     }
 
-    private void refreshWeatherData() {
-        FetchWeatherTask weatherTask = new FetchWeatherTask();
-        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getActivity());
+    private void retrieveWeatherData(int startId) {
+        FetchWeatherTask weatherTask = new FetchWeatherTask(startId);
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
         String cityId = prefs.getString("city", "1835847");
         weatherTask.execute(cityId);
     }
 
     @Override
-    public View onCreateView(LayoutInflater inflater, ViewGroup container,
-                             Bundle savedInstanceState) {
-        // Inflate the layout for this fragment
-        View view = inflater.inflate(R.layout.fragment_forecast,null);
-
-        String[] data = {
-                "Mon 6/23 - Sunny - 31/17",
-                "Tue 6/24 - Foggy - 21/8",
-                "Wed 6/25 - Cloudy - 22/17",
-                "Thurs 6/26 - Rainy - 18/11",
-                "Fri 6/27 - Foggy - 21/10",
-                "Sat 6/28 - TRAPPED IN WEATHERSTATION - 23/18",
-                "Sun 6/29 - Sunny - 20/7"
-        };
-
-        final List<String> LIST_SAMPLE = new ArrayList<String>(Arrays.asList(data));
-
-        myAdapter = new ArrayAdapter<String>(
-                getActivity(),
-                R.layout.list_view_item,
-                R.id.list_item_forecast_textview,
-                LIST_SAMPLE
-        );
-
-        ListView listView = (ListView) view.findViewById(R.id.listview);
-        listView.setAdapter(myAdapter);
-
-        listView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
-            @Override
-            public void onItemClick(AdapterView parent, View view, int position, long id) {
-
-                String forecast = (String) myAdapter.getItem(position);
-                Toast.makeText(getActivity(), forecast, Toast.LENGTH_SHORT).show();
-                Intent intent = new Intent(getActivity(), DetailActivity.class);
-                intent.putExtra("data", forecast);
-                startActivity(intent);
-            }
-        });
-
-        return view;
-        //return inflater.inflate(R.layout.fragment_forecast, container, false);
+    public IBinder onBind(Intent intent) {
+        // TODO: Return the communication channel to the service.
+        throw new UnsupportedOperationException("Not yet implemented");
     }
 
     public class FetchWeatherTask extends AsyncTask<String, Void, String[]> {
 
         private final String LOG_TAG = FetchWeatherTask.class.getSimpleName();
+        private int mStartId = -1;
+
+        public FetchWeatherTask(int startId) {
+            Log.d(LOG_TAG, "asfdasdfafd", new RuntimeException());
+            mStartId = startId;
+        }
 
         /* The date/time conversion code is going to be moved outside the asynctask later,
          * so for convenience we're breaking it out into its own method now.
@@ -224,10 +162,12 @@ public class ForecastFragment extends Fragment {
 
         @Override
         protected String[] doInBackground(String... params) {
+
             // If there's no zip code, there's nothing to look up.  Verify size of params.
             if (params.length == 0) {
                 return null;
             }
+
             // These two need to be declared outside the try/catch
             // so that they can be closed in the finally block.
             HttpURLConnection urlConnection = null;
@@ -235,6 +175,7 @@ public class ForecastFragment extends Fragment {
 
             // Will contain the raw JSON response as a string.
             String forecastJsonStr = null;
+
             String format = "json";
             String units = "metric";
             int numDays = 7;
@@ -324,13 +265,17 @@ public class ForecastFragment extends Fragment {
         @Override
         protected void onPostExecute(String[] result) {
             if (result != null) {
-                myAdapter.clear();
-                for(String dayForecastStr : result) {
-                    myAdapter.add(dayForecastStr);
-                }
-                // New data is back from the server.
+                notifyWeatherDataRetrieved(result);
             }
+
+            stopSelf(mStartId);
         }
+    }
+
+    private void notifyWeatherDataRetrieved(String[] result) {
+        Intent intent = new Intent(ACTION_RETRIEVE_WEATHER_DATA);
+        intent.putExtra(EXTRA_WEATHER_DATA, result);
+        sendBroadcast(intent);
     }
 
 }
